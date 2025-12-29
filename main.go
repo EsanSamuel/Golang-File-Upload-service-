@@ -38,6 +38,7 @@ func main() {
 }
 
 func fileUploadHandler(c *gin.Context) {
+	// Get file from request bosy
 	file, err := c.FormFile("file")
 
 	if err != nil {
@@ -54,6 +55,7 @@ func fileUploadHandler(c *gin.Context) {
 	}
 
 	src, err := file.Open()
+	fmt.Println("file src:", src)
 
 	fileBytes, err := io.ReadAll(src)
 	if err != nil {
@@ -125,7 +127,6 @@ func uploadToS3(file multipart.File, filename string) (string, error) {
 }
 
 func uploadLocally(fileByte []byte, f FileDTO, c *gin.Context) {
-	fmt.Println("File bytes:", fileByte)
 	if err := os.MkdirAll("uploads", 0755); err != nil {
 		fmt.Println("upload folder doesn't exist")
 	}
@@ -138,10 +139,5 @@ func uploadLocally(fileByte []byte, f FileDTO, c *gin.Context) {
 
 	if _, err := dst.Write(fileByte); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error uploading file locally"})
-	}
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
-		return
 	}
 }

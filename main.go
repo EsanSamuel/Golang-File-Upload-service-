@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -53,10 +55,14 @@ func fileUploadHandler(c *gin.Context) {
 
 	src, err := file.Open()
 
+	fileBytes, err := io.ReadAll(src)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot read file"})
 		return
 	}
+
+	uploadLocally(fileBytes, fileDTO, c)
+
 	defer src.Close()
 	url, err := uploadToS3(src, fileDTO.FileName)
 
@@ -116,4 +122,26 @@ func uploadToS3(file multipart.File, filename string) (string, error) {
 	url := "https://file-uploads.t3.storage.dev/" + filename
 
 	return url, err
+}
+
+func uploadLocally(fileByte []byte, f FileDTO, c *gin.Context) {
+	fmt.Println("File bytes:", fileByte)
+	if err := os.MkdirAll("uploads", 0755); err != nil {
+		fmt.Println("upload folder doesn't exist")
+	}
+
+	dst, err := os.Create(filepath.Join("uploads", f.FileName))
+	if err != nil {
+		return
+	}
+	defer dst.Close()
+
+	if _, err := dst.Write(fileByte); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error uploading file locally"})
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
+		return
+	}
 }
